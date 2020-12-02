@@ -27,6 +27,7 @@ ior:
     block_size: '100M'
     signature: 5
 datamover:
+    tool: "DCP"
     blocksize: '8MB'
     chunksize: '4MB'
     copy_procs:

@@ -69,6 +69,7 @@ mdtest:
 dfuse:
   mount_dir: "/tmp/daos_dfuse/"
 datamover:
+  tool: "DCP"
   src_path: "/"
   dest_path: "/"
   processes: 16

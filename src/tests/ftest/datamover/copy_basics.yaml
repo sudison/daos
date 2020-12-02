@@ -18,11 +18,9 @@ ior:
     client_processes:
         np: 1
     test_file: testFile
-    copy_basics:
-        flags_write:
-            - "-v -w -k"
-        flags_read:
-            - "-v -r -R"
+    ior_flags:
+        - "-v -w -k" # write
+        - "-v -r -R" # read-verify
     block_size: '1K'
     transfer_size: '1K'
     signature: 5
