@@ -32,7 +32,7 @@
 void
 print_layout(struct pl_obj_layout *layout);
 
-void
+int
 plt_obj_place(daos_obj_id_t oid, struct pl_obj_layout **layout,
 		struct pl_map *pl_map, bool print_layout);
 
@@ -124,7 +124,7 @@ plt_reint_tgts_get(uuid_t pl_uuid, daos_obj_id_t oid, uint32_t *failed_tgts,
 		   struct pl_map *pl_map, uint32_t *po_ver, bool pl_debug_msg);
 
 int
-getObjectClasses(daos_oclass_id_t **oclass_id_pp);
+get_object_classes(daos_oclass_id_t **oclass_id_pp);
 
 int
 extend_test_pool_map(struct pool_map *map, uint32_t nnodes,

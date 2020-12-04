@@ -121,6 +121,10 @@ static struct pool_comp_state_dict comp_state_dict[] = {
 		.sd_name	= "NEW",
 	},
 	{
+		.sd_state	= PO_COMP_ST_DRAIN,
+		.sd_name	= "DRAIN",
+	},
+	{
 		.sd_state	= PO_COMP_ST_UNKNOWN,
 		.sd_name	= "UNKNOWN",
 	},
@@ -1706,6 +1710,8 @@ pool_map_find_nodes(struct pool_map *map, uint32_t id,
  * \param map	[IN]		The pool map to search
  * \param id	[IN]		Target ID to search
  * \param target_pp [OUT]	Returned target address
+ *
+ * \return			1 if target was found
  */
 int
 pool_map_find_target(struct pool_map *map, uint32_t id,

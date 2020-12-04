@@ -28,6 +28,11 @@
 #include "place_obj_common.h"
 #include <daos_obj_class.h>
 #include <daos/pool_map.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+#include <cmocka.h>
+#include <daos/tests_lib.h>
 
 void
 print_layout(struct pl_obj_layout *layout)
@@ -36,18 +41,24 @@ print_layout(struct pl_obj_layout *layout)
 	int sz;
 	int index;
 
+//	printf("groups: %d, shards: %d", layout->ol_grp_nr,  layout->ol_nr);
 	for (grp = 0; grp < layout->ol_grp_nr; ++grp) {
 		printf("[");
 		for (sz = 0; sz < layout->ol_grp_size; ++sz) {
+			struct pl_obj_shard shard;
+
 			index = (grp * layout->ol_grp_size) + sz;
-			printf("%d ", layout->ol_shards[index].po_target);
+			shard = layout->ol_shards[index];
+			printf("%d%s ", shard.po_target, shard.po_rebuilding ? "R" : "");
+//			printf("%d=>%d%s ", shard.po_shard, shard.po_target, shard.po_rebuilding ? "R" : "");
+//			printf("%d ", layout->ol_shards[index].po_target);
 		}
 		printf("\b]");
 	}
 	printf("\n");
 }
 
-void
+int
 plt_obj_place(daos_obj_id_t oid, struct pl_obj_layout **layout,
 		struct pl_map *pl_map, bool print_layout_flag)
 {
@@ -59,12 +70,17 @@ plt_obj_place(daos_obj_id_t oid, struct pl_obj_layout **layout,
 	md.omd_ver = 1;
 
 	rc = pl_obj_place(pl_map, &md, NULL, layout);
-	D_ASSERT(rc == 0);
 
 	if (print_layout_flag)
 		print_layout(*layout);
+
+	return rc;
 }
 
+/*
+ * Verifies that num_allowed_failures (-1 target) is not exceeded and the same
+ * target isn't used more than once.
+ */
 void
 plt_obj_layout_check(struct pl_obj_layout *layout, uint32_t pool_size,
 		int num_allowed_failures)
@@ -84,7 +100,6 @@ plt_obj_layout_check(struct pl_obj_layout *layout, uint32_t pool_size,
 		D_ASSERT(num_allowed_failures >= 0);
 
 		if (target_num != -1) {
-
 			D_ASSERT(target_set[target_num] != 1);
 			target_set[target_num] = 1;
 		}
@@ -263,8 +278,8 @@ plt_obj_add_layout_check(struct pl_obj_layout *layout,
 	bool		contains_new_tgt;
 	int		i;
 
-	print_layout(layout);
-	print_layout(org_layout);
+//	print_layout(layout);
+//	print_layout(org_layout);
 	D_ALLOC_ARRAY(target_set, pool_size);
 	D_ASSERT(target_set != NULL);
 
@@ -443,7 +458,7 @@ plt_spare_tgts_get(uuid_t pl_uuid, daos_obj_id_t oid, uint32_t *failed_tgts,
 		plt_fail_tgt(failed_tgts[i], po_ver, po_map, pl_debug_msg);
 
 	rc = pl_map_update(pl_uuid, po_map, false, map_type);
-	D_ASSERT(rc == 0);
+	assert_success(rc);
 	pl_map = pl_map_find(pl_uuid, oid);
 	D_ASSERT(pl_map != NULL);
 	dc_obj_fetch_md(oid, &md);
@@ -514,20 +529,23 @@ gen_pool_and_placement_map(int num_domains, int nodes_per_domain,
 	D_ASSERT(buf != NULL);
 
 	rc = pool_buf_attach(buf, comps, nr);
-	D_ASSERT(rc == 0);
+	assert_success(rc);
 
 	/* No longer needed, copied into pool buf */
 	D_FREE(comps);
 
 	rc = pool_map_create(buf, 1, po_map_out);
-	D_ASSERT(rc == 0);
+	assert_success(rc);
+
+	/* No longer needed, copied into pool map */
+	D_FREE(buf);
 
 	mia.ia_type         = pl_type;
 	mia.ia_ring.ring_nr = 1;
 	mia.ia_ring.domain  = PO_COMP_TP_RACK;
 
 	rc = pl_map_create(*po_map_out, &mia, pl_map_out);
-	D_ASSERT(rc == 0);
+	assert_success(rc);
 }
 
 void
@@ -562,7 +580,7 @@ plt_reint_tgts_get(uuid_t pl_uuid, daos_obj_id_t oid, uint32_t *failed_tgts,
 		plt_reint_tgt(reint_tgts[i], po_ver, po_map, pl_debug_msg);
 
 	rc = pl_map_update(pl_uuid, po_map, false, map_type);
-	D_ASSERT(rc == 0);
+	assert_success(rc);
 	pl_map = pl_map_find(pl_uuid, oid);
 	D_ASSERT(pl_map != NULL);
 	dc_obj_fetch_md(oid, &md);
@@ -588,7 +606,7 @@ plt_reint_tgts_get(uuid_t pl_uuid, daos_obj_id_t oid, uint32_t *failed_tgts,
 }
 
 int
-getObjectClasses(daos_oclass_id_t **oclass_id_pp)
+get_object_classes(daos_oclass_id_t **oclass_id_pp)
 {
 	const uint32_t str_size = 2560;
 	char oclass_names[str_size];
@@ -644,11 +662,11 @@ extend_test_pool_map(struct pool_map *map,
 	rc = gen_pool_buf(map, &map_buf, map_version, ndomains, nnodes,
 			  ntargets, domains, target_uuids, rank_list, NULL,
 			dss_tgt_nr);
-	D_ASSERT(rc == 0);
+	assert_success(rc);
 
 	/* Extend the current pool map */
 	rc = pool_map_extend(map, map_version, map_buf);
-	D_ASSERT(rc == 0);
+	assert_success(rc);
 
 	return rc;
 }
