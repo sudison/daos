@@ -49,8 +49,8 @@ print_layout(struct pl_obj_layout *layout)
 
 			index = (grp * layout->ol_grp_size) + sz;
 			shard = layout->ol_shards[index];
-			printf("%d%s ", shard.po_target, shard.po_rebuilding ? "R" : "");
-//			printf("%d=>%d%s ", shard.po_shard, shard.po_target, shard.po_rebuilding ? "R" : "");
+//			printf("%d%s ", shard.po_target, shard.po_rebuilding ? "R" : "");
+			printf("%d=>%d%s ", shard.po_shard, shard.po_target, shard.po_rebuilding ? "R" : "");
 //			printf("%d ", layout->ol_shards[index].po_target);
 		}
 		printf("\b]");

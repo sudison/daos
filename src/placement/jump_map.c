@@ -841,7 +841,12 @@ ERR:
 static void
 jump_map_print(struct pl_map *map)
 {
+	struct pl_jump_map *jmap = pl_map2jmap(map);
+
 	/** Currently nothing to print */
+	D_PRINT("Jump Map -> connects: %d, ref: %d, type: %d, domain: %d, min_redundant_dom: %d\n",
+		map->pl_connects, map->pl_ref, map->pl_type, jmap->jmp_domain_nr, jmap->min_redundant_dom);
+
 }
 
 /**

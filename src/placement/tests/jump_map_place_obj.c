@@ -96,20 +96,20 @@ rebuild_object_class(daos_oclass_id_t cid)
 {
 	struct pool_map		*po_map;
 	struct pl_map		*pl_map;
-	uint32_t		spare_tgt_ranks[SPARE_MAX_NUM];
-	uint32_t		shard_ids[SPARE_MAX_NUM];
-	daos_obj_id_t		oid;
-	uuid_t			pl_uuid;
-	struct daos_obj_md	*md_arr;
-	struct daos_obj_md	md = { 0 };
+	uint32_t		 spare_tgt_ranks[SPARE_MAX_NUM];
+	uint32_t		 shard_ids[SPARE_MAX_NUM];
+	daos_obj_id_t		 oid;
+	uuid_t			 pl_uuid;
+	struct daos_obj_md	 *md_arr;
+	struct daos_obj_md	 md = { 0 };
 	struct pl_obj_layout	**org_layout;
-	struct pl_obj_layout    *layout;
-	uint32_t		po_ver;
-	int			test_num;
-	int			num_new_spares;
-	int			fail_tgt;
-	int			spares_left;
-	int			rc, i;
+	struct pl_obj_layout	*layout;
+	uint32_t		 po_ver;
+	int			 test_num;
+	int			 num_new_spares;
+	int			 fail_tgt;
+	int			 spares_left;
+	int			 rc, i;
 
 	uuid_generate(pl_uuid);
 	srand(time(NULL));
@@ -607,12 +607,6 @@ add_all_object_classes(void **state)
  * New Tests
  * --------------------------------------------------- */
 
-
-/* [todo-ryon]: Tests ...
- *   - Test from Di (do a bunch of different modifications
- *   -
- */
-
 static void
 gen_maps(int num_domains, int nodes_per_domain, int vos_per_target,
 	 struct pool_map **po_map, struct pl_map **pl_map)
@@ -921,18 +915,30 @@ chained_down_outs(void **state)
 	const uint32_t		 domain_nr	= 4;
 	const uint32_t		 node_nr	= 1;
 	const uint32_t		 target_nr	= 8;
-
+	uuid_t uuid;
 	gen_maps(domain_nr, node_nr, target_nr, &po_map, &pl_map);
 	gen_oid(&oid, 1, UINT64_MAX, OC_RP_2G1);
+
+	uuid_generate(uuid);
 
 	do_placement(oid, layout, pl_map);
 	print_layout(layout);
 	set_status_on_all_shards(PO_COMP_ST_DOWNOUT, layout, po_map, &ver);
+	pl_map_update(uuid, po_map, false, PL_TYPE_JUMP_MAP);
+	pl_map = pl_map_find(uuid, oid);
+
 	pl_obj_layout_free(layout);
 
 	do_placement(oid, layout, pl_map);
 	print_layout(layout);
 	set_status_on_all_shards(PO_COMP_ST_DOWNOUT, layout, po_map, &ver);
+
+	pl_map_print(pl_map);
+
+	pl_map_update(uuid, po_map, false, PL_TYPE_JUMP_MAP);
+	pl_map = pl_map_find(uuid, oid);
+
+	pl_map_print(pl_map);
 	pl_obj_layout_free(layout);
 
 	print_pool(po_map);
@@ -988,42 +994,399 @@ drain_all(void **state)
 	free_pool_and_placement_map(po_map, pl_map);
 }
 
-static void
-misc_testing(void **state)
-{
+struct jm_test_ctx {
 	struct pool_map		*po_map;
 	struct pl_map		*pl_map;
 	struct pl_obj_layout	*layout;
 	daos_obj_id_t		 oid;
-	uint32_t 		 ver = 0;
-	uint32_t		 i;
-	const uint32_t		 domain_nr	= 4;
-	const uint32_t		 node_nr	= 1;
-	const uint32_t		 target_nr	= 8;
+	uint32_t 		 ver;
+	uint32_t		 domain_nr;
+	uint32_t		 node_nr;
+	uint32_t		 target_nr;
+	daos_oclass_id_t	 object_class;
+	bool			 are_maps_generated;
+	bool			 is_layout_set;
+	bool			 enable_print_layout;
+	bool			 enable_print_debug_msgs;
+	bool			 enable_print_pool;
+};
 
-	gen_maps(domain_nr, node_nr, target_nr, &po_map, &pl_map);
-	gen_oid(&oid, 1, UINT64_MAX, OC_RP_2G1);
-
-	do_placement(oid, layout, pl_map);
-	print_layout(layout);
-	print_pool(po_map);
-	set_status_on_all_shards(PO_COMP_ST_DRAIN, layout, po_map, &ver);
-	print_pool(po_map);
-
-	pl_obj_layout_free(layout);
-
-	do_placement(oid, layout, pl_map);
-	print_layout(layout);
-
-	pl_obj_layout_free(layout);
-
-//	do_placement(oid, layout, pl_map);
-//	print_layout(layout);
-//	pl_obj_layout_free(layout);
-
-	free_pool_and_placement_map(po_map, pl_map);
+static void
+__jtc_maps_free(struct jm_test_ctx *ctx)
+{
+	if (ctx->are_maps_generated)
+		free_pool_and_placement_map(ctx->po_map, ctx->pl_map);
 }
 
+static void
+__jtc_inc_ver(struct jm_test_ctx *ctx)
+{
+	ctx->ver++;
+}
+
+static void
+__jtc_layout_free(struct jm_test_ctx *ctx)
+{
+	if (ctx->is_layout_set)
+		pl_obj_layout_free(ctx->layout);
+}
+
+static void
+jtc_print_pool(struct jm_test_ctx *ctx)
+{
+	if (ctx->enable_print_pool)
+		pool_map_print(ctx->po_map);
+}
+
+static void
+jtc_print_pool_force(struct jm_test_ctx *ctx)
+{
+	pool_map_print(ctx->po_map);
+}
+
+static void
+jtc_print_layout(struct jm_test_ctx *ctx)
+{
+	if (ctx->enable_print_layout)
+		print_layout(ctx->layout);
+}
+static void
+jtc_print_layout_force(struct jm_test_ctx *ctx)
+{
+	print_layout(ctx->layout);
+}
+
+static void
+jtc_maps_gen(struct jm_test_ctx *ctx)
+{
+	/* Allocates the maps. must be freed with jtc_maps_free if already
+	 * allocated
+	 */
+	__jtc_maps_free(ctx);
+
+	gen_pool_and_placement_map(ctx->domain_nr, ctx->node_nr,
+				   ctx->target_nr, PL_TYPE_JUMP_MAP,
+				   &ctx->po_map, &ctx->pl_map);
+
+	assert_non_null(ctx->po_map);
+	assert_non_null(ctx->pl_map);
+	ctx->are_maps_generated = true;
+}
+
+static int
+jtc_create_layout(struct jm_test_ctx *ctx)
+{
+	int rc;
+
+	/* place object will allocate the layout so need to free first
+	 * if already allocated
+	 */
+	__jtc_layout_free(ctx);
+	rc = plt_obj_place(ctx->oid, &ctx->layout, ctx->pl_map,
+			   ctx->enable_print_layout);
+	ctx->is_layout_set = true;
+	return rc;
+}
+
+static void
+jtc_set_status_on_target(struct jm_test_ctx *ctx, const int status,
+			 const uint32_t id)
+{
+	uuid_t uuid;
+
+	__jtc_inc_ver(ctx);
+	plt_set_tgt_status(id, status, ctx->ver, ctx->po_map,
+			   ctx->enable_print_debug_msgs);
+
+	pl_map_update(uuid, ctx->po_map, false, PL_TYPE_JUMP_MAP);
+	ctx->pl_map = pl_map_find(uuid, ctx->oid);
+}
+
+static int
+__jtc_layout_tgt(struct jm_test_ctx *ctx, uint32_t shard_idx)
+{
+	return  ctx->layout->ol_shards[shard_idx].po_target;
+}
+
+static void
+jtc_set_status_on_all_shards(struct jm_test_ctx *ctx, const int status)
+{
+	int i;
+
+	for (i = 0; i < ctx->layout->ol_nr; i++)
+		jtc_set_status_on_target(ctx, status, __jtc_layout_tgt(ctx, i));
+	jtc_print_pool(ctx);
+
+}
+
+static void
+jtc_reset_statuses(struct jm_test_ctx *ctx)
+{
+	int i;
+	uint32_t target_nr = pool_map_target_nr(ctx->po_map);
+
+	for (i = 0; i < target_nr; i++)
+		jtc_set_status_on_target(ctx, PO_COMP_ST_UPIN, i);
+	jtc_print_pool(ctx);
+
+}
+
+static void
+jtc_set_object_meta(struct jm_test_ctx *ctx,
+		    daos_oclass_id_t object_class, uint64_t lo, uint64_t hi)
+{
+	ctx->object_class = object_class;
+	gen_oid(&ctx->oid, lo, hi, object_class);
+}
+static void
+jtc_set_object_class(struct jm_test_ctx *ctx, daos_oclass_id_t object_class)
+{
+	jtc_set_object_meta(ctx, object_class, 1, UINT64_MAX);
+}
+
+static void
+jtc_set_status_on_first_shards(struct jm_test_ctx *ctx, const int status)
+{
+	jtc_set_status_on_target(ctx, status, __jtc_layout_tgt(ctx, 0));
+}
+
+static struct pl_obj_shard *
+jtc_get_layout_shards(struct jm_test_ctx *ctx)
+{
+	return ctx->layout->ol_shards;
+}
+static struct pl_obj_shard *
+jtc_get_layout_shard(struct jm_test_ctx *ctx, const int shard_idx)
+{
+	if (shard_idx < ctx->layout->ol_nr)
+		return &ctx->layout->ol_shards[shard_idx];
+
+	return NULL;
+}
+
+static uint32_t
+jtc_get_layout_shard_nr(struct jm_test_ctx *ctx)
+{
+	return ctx->layout->ol_nr;
+}
+
+static void
+jtc_init(struct jm_test_ctx *ctx, uint32_t domain_nr, uint32_t node_nr,
+	 uint32_t target_nr, daos_oclass_id_t object_class)
+{
+	memset(ctx, 0, sizeof(*ctx));
+
+	ctx->domain_nr = domain_nr;
+	ctx->node_nr = node_nr;
+	ctx->target_nr = target_nr;
+	ctx->ver = 1; /* Should start with pool map version 1 */
+
+	jtc_maps_gen(ctx);
+	jtc_set_object_meta(ctx, object_class, 1, UINT64_MAX);
+	jtc_create_layout(ctx);
+}
+
+static void
+jtc_fini(struct jm_test_ctx *ctx)
+{
+	__jtc_layout_free(ctx);
+	__jtc_maps_free(ctx);
+}
+
+/* shard: struct pl_obj_shard * */
+#define jtc_for_each_layout_shard(ctx, shard, i) \
+	for (i = 0, shard = jtc_get_layout_shard(ctx, 0); \
+		i < jtc_get_layout_shard_nr(ctx); \
+		i++, shard = jtc_get_layout_shard(ctx, i))
+
+/* syntactical sugar to make tests easier to read */
+enum shard_state {
+	G = 1,
+	B = 2,
+	RB = 3,
+};
+
+#define DF_STATE "%s"
+#define DP_STATE(s) s == G ? "G" : s == B ? "B" : "RB"
+
+/* [todo-ryon]: change this to a method with a macro wrapper ...
+ *   this is too hard to debug and is messy */
+#define expect_shard_states(ctx, ...) \
+do { \
+int			 __i; \
+struct pl_obj_shard	*__shard = NULL; \
+enum shard_state __expected_states[][2] = __VA_ARGS__; \
+assert_success(jtc_create_layout(ctx)); \
+jtc_print_layout(ctx); \
+if (ARRAY_SIZE(__expected_states) != \
+	jtc_get_layout_shard_nr(ctx))\
+	fail_msg("Expected %d but found %d\n", \
+		(int)ARRAY_SIZE(__expected_states), \
+		jtc_get_layout_shard_nr(ctx)); \
+	uint32_t __e; \
+	enum shard_state __actual_state; \
+	jtc_for_each_layout_shard(ctx, __shard, __i) { \
+		bool __found = false; \
+		__actual_state = __shard->po_target == -1 ? B : \
+				__shard->po_rebuilding ? RB : \
+				G; \
+		for (__e = 0; __e < ARRAY_SIZE(__expected_states)\
+			&& __found == false; __e++) { \
+			if (__shard->po_shard == __expected_states[__e][0] && \
+				__actual_state == __expected_states[__e][1]) \
+					__found = true; \
+		} \
+		if (!__found) {\
+			jtc_print_layout_force(ctx); \
+			fail_msg("shard %d, state " DF_STATE" was not expected\n", \
+				__shard->po_shard, DP_STATE(__actual_state)); \
+		}\
+	} \
+} while (0)
+
+static void
+upin_state(void **state)
+{
+	struct jm_test_ctx	 ctx;
+
+	jtc_init(&ctx, 4, 1, 4, OC_RP_2G1);
+	expect_shard_states(&ctx, {{0, G}, {1, G}});
+	jtc_set_object_class(&ctx, OC_RP_2G2);
+	expect_shard_states(&ctx, {{0, G}, {1, G}, {2, G}, {3, G}});
+	jtc_set_object_class(&ctx, OC_RP_2GX);
+	expect_shard_states(&ctx, {
+		{ 0, G}, { 1, G}, { 2, G}, { 3, G},
+		{ 4, G}, { 5, G}, { 6, G}, { 7, G},
+		{ 8, G}, { 9, G}, {10, G}, {11, G},
+		{12, G}, {13, G}, {14, G}, {15, G} });
+
+	jtc_fini(&ctx);
+}
+
+/*
+ *
+ */
+static void
+up_state(void **state)
+{
+	struct jm_test_ctx	 ctx;
+
+	jtc_init(&ctx, 4, 1, 4, OC_RP_2G1);
+
+	jtc_create_layout(&ctx);
+	expect_shard_states(&ctx, {{0, G}, {1, G}});
+
+
+	jtc_set_status_on_all_shards(&ctx, PO_COMP_ST_UP);
+	expect_shard_states(&ctx, {{0, G}, {1, G}, {0, RB}, {1, RB}});
+
+	jtc_reset_statuses(&ctx);
+
+	jtc_set_object_class(&ctx, OC_RP_2G2);
+	expect_shard_states(&ctx, {{0, G}, {1, G}, {2, G}, {3, G}});
+	jtc_set_status_on_all_shards(&ctx, PO_COMP_ST_UP);
+
+	/* This last test case has garbage for the last shard (idx 7) */
+	expect_shard_states(&ctx, {{0, G}, {1, G}, {2, G}, {3, G},
+			    {0, RB}, {1, RB}, {2, RB}, {3, RB},
+	});
+
+jtc_fini(&ctx);
+
+}
+/*
+ * for regular placement API
+ * !rebuilding = UPIN
+ * rebuilding = [UP, NEW, DRAIN, DOWN]
+ * -1 = failed to put shard anywhere
+ * DOWNOUT target should never show up in layout
+ */
+static void
+new_state(void **state)
+{
+	struct jm_test_ctx	 ctx;
+
+	jtc_init(&ctx, 2, 1, 4, OC_RP_2G1);
+	ctx.enable_print_layout = true;
+	jtc_print_layout_force(&ctx);
+
+	jtc_set_status_on_target(&ctx, PO_COMP_ST_NEW, 3);
+	jtc_print_pool_force(&ctx);
+
+	assert_success(jtc_create_layout(&ctx));
+	jtc_print_layout_force(&ctx);
+
+	jtc_set_status_on_target(&ctx, PO_COMP_ST_NEW, 7);
+	jtc_print_pool_force(&ctx);
+	assert_success(jtc_create_layout(&ctx));
+	jtc_print_layout_force(&ctx);
+
+	fail_msg("Not sure what's going on here or what to expect. With target "
+		 "3 set as NEW (it would have been used as the placement for "
+		 "shard 1) target 2 is chosen instead, but target 2 is not "
+		 "included at all. But when target 7 is set as NEW (which is "
+		 "not used in the layout at all) then target 2 and 3 are used "
+		 "for shard 1, but neither are marked as rebuild. I'm still "
+		 "not sure if I even have a valid configuration setup.");
+
+	jtc_fini(&ctx);
+}
+
+static void
+down_state(void **state)
+{
+	struct jm_test_ctx	 ctx;
+
+	jtc_init(&ctx, 4, 1, 4, OC_RP_2G1);
+
+	jtc_set_status_on_first_shards(&ctx, PO_COMP_ST_DOWN);
+	expect_shard_states(&ctx, {{0, RB}, {1, G}});
+
+	/* Not sure why it fails a second time. Shouldn't it just try again
+	 * with a different rebuild target?
+	 */
+	jtc_set_status_on_first_shards(&ctx, PO_COMP_ST_DOWN);
+	expect_shard_states(&ctx, {{0, RB}, {1, G}});
+
+	jtc_fini(&ctx);
+}
+
+static void
+downout_state(void **state)
+{
+	struct jm_test_ctx	 ctx;
+
+	ctx.enable_print_layout = true;
+	ctx.enable_print_debug_msgs = true;
+	jtc_init(&ctx, 4, 1, 4, OC_RP_2G1);
+
+	expect_shard_states(&ctx, {0, G, 1, G});
+
+	jtc_set_status_on_all_shards(&ctx, PO_COMP_ST_DOWNOUT);
+	expect_shard_states(&ctx, {{0, G}, {1, G}});
+
+	jtc_set_status_on_all_shards(&ctx, PO_COMP_ST_DOWNOUT);
+	assert_success(jtc_create_layout(&ctx));
+
+	expect_shard_states(&ctx, {{0, G}, {1, G}});
+
+	jtc_fini(&ctx);
+}
+
+static void
+drain_state(void **state)
+{
+	struct jm_test_ctx	 ctx;
+
+	jtc_init(&ctx, 4, 1, 4, OC_RP_2G1);
+
+	expect_shard_states(&ctx, {{0, G}, {1, G}});
+
+	jtc_set_status_on_all_shards(&ctx, PO_COMP_ST_DRAIN);
+	expect_shard_states(&ctx, {{0, G}, {1, G}, {0, RB}, {1, RB}});
+
+	jtc_fini(&ctx);
+}
 
 /*
  * ------------------------------------------------
@@ -1046,6 +1409,7 @@ placement_test_teardown(void **state)
 }
 
 
+
 #define TEST(dsc, test) { dsc, test, placement_test_setup, placement_test_teardown }
 static const struct CMUnitTest legacy_tests[] = {
 	TEST("PLACEMENT01: Test placement on all object classes", placement_all_object_classes),
@@ -1055,13 +1419,30 @@ static const struct CMUnitTest legacy_tests[] = {
 	TEST("PLACEMENT05: Test add on all object classes", add_all_object_classes),
 };
 
+/* [todo-ryon]: Tests ...
+ *   - Test from Di (do a bunch of different modifications)
+ *   - For each state, put 1, 2, all targets in state, what should new layout look like
+ *   	- NEW
+ *   	- UP
+ *   	- DOWN
+ *   	- DOWNOUT
+ *   	- DRAIN
+ *   	o Also change targets in different shard groups
+ */
+
 static const struct CMUnitTest new_tests[] = {
 //	TEST("PLACEMENT01: ", object_class_is_verified),
 //	TEST("PLACEMENT02: ", modify_pool_map1),
 //	TEST("PLACEMENT03: ", modify_pool_map2),
-	TEST("Chaining down outs should still have a good layout", chained_down_outs),
-	TEST("Drain all: ", drain_all),
-	TEST("Misc Testing: ", misc_testing),
+//	TEST("Chaining down outs should still have a good layout", chained_down_outs),
+//	TEST("Drain all: ", drain_all),
+
+	TEST("UPIN", upin_state),
+	TEST("UP", up_state),
+	TEST("NEW", new_state),
+	TEST("DOWN", down_state),
+	TEST("DOWNOUT", downout_state),
+	TEST("DRAIN", drain_state),
 };
 
 
