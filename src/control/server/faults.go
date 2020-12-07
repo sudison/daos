@@ -76,22 +76,22 @@ func FaultInstancesNotStopped(action string, rank system.Rank) *fault.Fault {
 func FaultPoolNvmeTooSmall(reqBytes uint64, targetCount int) *fault.Fault {
 	return serverFault(
 		code.ServerPoolNvmeTooSmall,
-		fmt.Sprintf("requested NVMe capacity (%s) is too small (min %s)",
-			humanize.IBytes(reqBytes),
-			humanize.IBytes(ioserver.NvmeMinBytesPerTarget*uint64(targetCount))),
+		fmt.Sprintf("requested NVMe capacity (%s / %d) is too small (min %s per target)",
+			humanize.Bytes(reqBytes), targetCount,
+			humanize.IBytes(ioserver.NvmeMinBytesPerTarget)),
 		fmt.Sprintf("NVMe capacity should be larger than %s",
-			humanize.IBytes(ioserver.NvmeMinBytesPerTarget*uint64(targetCount))),
+			humanize.Bytes(ioserver.NvmeMinBytesPerTarget*uint64(targetCount))),
 	)
 }
 
 func FaultPoolScmTooSmall(reqBytes uint64, targetCount int) *fault.Fault {
 	return serverFault(
 		code.ServerPoolScmTooSmall,
-		fmt.Sprintf("requested SCM capacity (%s) is too small (min %s)",
-			humanize.IBytes(reqBytes),
-			humanize.IBytes(ioserver.ScmMinBytesPerTarget*uint64(targetCount))),
+		fmt.Sprintf("requested SCM capacity (%s / %d) is too small (min %s per target)",
+			humanize.Bytes(reqBytes), targetCount,
+			humanize.IBytes(ioserver.ScmMinBytesPerTarget)),
 		fmt.Sprintf("SCM capacity should be larger than %s",
-			humanize.IBytes(ioserver.ScmMinBytesPerTarget*uint64(targetCount))),
+			humanize.Bytes(ioserver.ScmMinBytesPerTarget*uint64(targetCount))),
 	)
 }
 

@@ -384,33 +384,34 @@ class DmgCommand(DmgCommandBase):
         }
         if target_list is not None:
             kwargs["ranks"] = ",".join([str(target) for target in target_list])
+        self.json.update(True)
         self._get_result(("pool", "create"), **kwargs)
 
         # Extract the new pool UUID and SVC list from the command output
         data = {}
-        if self.json.value:
-            # Sample json output.
-            # "response": {
-            #     "UUID": "ebac9285-61ec-4d2e-aa2d-4d0f7dd6b7d6",
-            #     "Svcreps": [
-            #     0
-            #     ]
-            # },
-            # "error": null,
-            # "status": 0
-            output = json.loads(self.result.stdout)
-            data["uuid"] = output["response"]["UUID"]
-            data["svc"] = ",".join(
-                [str(svc) for svc in output["response"]["Svcreps"]])
-
-        else:
-            match = re.findall(
-                r"UUID:\s+([A-Za-z0-9-]+),\s+"
-                r"Service replicas:\s+([0-9]+(,[0-9]+)*)",
-                self.result.stdout)
-            if match:
-                data["uuid"] = match[0][0]
-                data["svc"] = match[0][1]
+        # Sample json output.
+        # "response": {
+        #   "uuid": "ebac9285-61ec-4d2e-aa2d-4d0f7dd6b7d6",
+        #   "svc_reps": [
+        #     0
+        #   ],
+        #   "tgt_ranks": [
+        #     0,
+        #     1
+        #   ],
+        #   "scm_bytes": 256000000,
+        #   "nvme_bytes": 0
+        # },
+        # "error": null,
+        # "status": 0
+        output = json.loads(self.result.stdout)
+        data["uuid"] = output["response"]["uuid"]
+        data["svc"] = ",".join(
+            [str(svc) for svc in output["response"]["svc_reps"]])
+        data["ranks"] = ",".join(
+            [str(r) for r in output["response"]["tgt_ranks"]])
+        data["scm_per_rank"] = output["response"]["scm_bytes"]
+        data["nvme_per_rank"] = output["response"]["nvme_bytes"]
 
         return data
 

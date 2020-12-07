@@ -132,6 +132,95 @@ func TestServer_MgmtSvc_PoolCreateAlreadyExists(t *testing.T) {
 	}
 }
 
+func TestServer_MgmtSvc_calculateCreateStorage(t *testing.T) {
+	defaultTotal := uint64(10 * humanize.TByte)
+	defaultRatio := float32(0.06)
+	defaultScmBytes := uint64(float64(defaultTotal) * float64(defaultRatio))
+	defaultNvmeBytes := defaultTotal - defaultScmBytes
+	testTargetCount := 8
+	scmTooSmallTotal := uint64(1 * humanize.GByte)
+	scmToolSmallReq := uint64(float64(scmTooSmallTotal) * float64(defaultRatio))
+	nvmeTooSmallTotal := uint64(3 * humanize.GByte)
+	nvmeTooSmallReq := nvmeTooSmallTotal - uint64(float64(nvmeTooSmallTotal)*float64(defaultRatio))
+
+	for name, tc := range map[string]struct {
+		in     *mgmtpb.PoolCreateReq
+		expOut *mgmtpb.PoolCreateReq
+		expErr error
+	}{
+		"auto sizing": {
+			in: &mgmtpb.PoolCreateReq{
+				Totalbytes: defaultTotal,
+				Scmratio:   defaultRatio,
+			},
+			expOut: &mgmtpb.PoolCreateReq{
+				Scmbytes:  defaultScmBytes,
+				Nvmebytes: defaultNvmeBytes,
+			},
+		},
+		"auto sizing (not enough SCM)": {
+			in: &mgmtpb.PoolCreateReq{
+				Totalbytes: scmTooSmallTotal,
+				Scmratio:   defaultRatio,
+			},
+			expErr: FaultPoolScmTooSmall(scmToolSmallReq, testTargetCount),
+		},
+		"auto sizing (not enough NVMe)": {
+			in: &mgmtpb.PoolCreateReq{
+				Totalbytes: nvmeTooSmallTotal,
+				Scmratio:   defaultRatio,
+			},
+			expErr: FaultPoolNvmeTooSmall(nvmeTooSmallReq, testTargetCount),
+		},
+		"manual sizing": {
+			in: &mgmtpb.PoolCreateReq{
+				Scmbytes:  defaultScmBytes - 1,
+				Nvmebytes: defaultNvmeBytes - 1,
+			},
+			expOut: &mgmtpb.PoolCreateReq{
+				Scmbytes:  defaultScmBytes - 1,
+				Nvmebytes: defaultNvmeBytes - 1,
+			},
+		},
+		"manual sizing (not enough SCM)": {
+			in: &mgmtpb.PoolCreateReq{
+				Scmbytes: scmToolSmallReq,
+			},
+			expErr: FaultPoolScmTooSmall(scmToolSmallReq, testTargetCount),
+		},
+		"manual sizing (not enough NVMe)": {
+			in: &mgmtpb.PoolCreateReq{
+				Scmbytes:  defaultScmBytes,
+				Nvmebytes: nvmeTooSmallReq,
+			},
+			expErr: FaultPoolNvmeTooSmall(nvmeTooSmallReq, testTargetCount),
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			log, buf := logging.NewTestLogger(t.Name())
+			defer common.ShowBufferOnFailure(t, buf)
+
+			svc := newTestMgmtSvc(t, log)
+			svc.harness.instances[0] = newTestIOServer(log, false,
+				ioserver.NewConfig().
+					WithTargetCount(testTargetCount).
+					WithBdevClass("nvme").
+					WithBdevDeviceList("foo", "bar"),
+			)
+
+			gotErr := svc.calculateCreateStorage(tc.in)
+			common.CmpErr(t, tc.expErr, gotErr)
+			if tc.expErr != nil {
+				return
+			}
+
+			if diff := cmp.Diff(tc.expOut, tc.in); diff != "" {
+				t.Fatalf("unexpected req (-want, +got):\n%s\n", diff)
+			}
+		})
+	}
+}
+
 func TestServer_MgmtSvc_PoolCreate(t *testing.T) {
 	testLog, _ := logging.NewTestLogger(t.Name())
 	missingSB := newTestMgmtSvc(t, testLog)
@@ -209,7 +298,11 @@ func TestServer_MgmtSvc_PoolCreate(t *testing.T) {
 				Scmbytes:  100 * humanize.GiByte,
 				Nvmebytes: 10 * humanize.TByte,
 			},
-			expResp: &mgmtpb.PoolCreateResp{},
+			expResp: &mgmtpb.PoolCreateResp{
+				ScmBytes:  100 * humanize.GiByte,
+				NvmeBytes: 10 * humanize.TByte,
+				TgtRanks:  []uint32{},
+			},
 		},
 		"successful creation minimum size": {
 			targetCount: 8,
@@ -218,25 +311,11 @@ func TestServer_MgmtSvc_PoolCreate(t *testing.T) {
 				Scmbytes:  ioserver.ScmMinBytesPerTarget * 8,
 				Nvmebytes: ioserver.NvmeMinBytesPerTarget * 8,
 			},
-			expResp: &mgmtpb.PoolCreateResp{},
-		},
-		"failed creation scm too small": {
-			targetCount: 8,
-			req: &mgmtpb.PoolCreateReq{
-				Uuid:      common.MockUUID(0),
-				Scmbytes:  (ioserver.ScmMinBytesPerTarget * 8) - 1,
-				Nvmebytes: ioserver.NvmeMinBytesPerTarget * 8,
+			expResp: &mgmtpb.PoolCreateResp{
+				ScmBytes:  ioserver.ScmMinBytesPerTarget * 8,
+				NvmeBytes: ioserver.NvmeMinBytesPerTarget * 8,
+				TgtRanks:  []uint32{},
 			},
-			expErr: FaultPoolScmTooSmall((ioserver.ScmMinBytesPerTarget*8)-1, 8),
-		},
-		"failed creation nvme too small": {
-			targetCount: 8,
-			req: &mgmtpb.PoolCreateReq{
-				Uuid:      common.MockUUID(0),
-				Scmbytes:  ioserver.ScmMinBytesPerTarget * 8,
-				Nvmebytes: (ioserver.NvmeMinBytesPerTarget * 8) - 1,
-			},
-			expErr: FaultPoolNvmeTooSmall((ioserver.NvmeMinBytesPerTarget*8)-1, 8),
 		},
 		"failed creation invalid ranks": {
 			targetCount: 1,
@@ -257,7 +336,10 @@ func TestServer_MgmtSvc_PoolCreate(t *testing.T) {
 			defer cancel()
 
 			if tc.mgmtSvc == nil {
-				ioCfg := ioserver.NewConfig().WithTargetCount(tc.targetCount)
+				ioCfg := ioserver.NewConfig().
+					WithTargetCount(tc.targetCount).
+					WithBdevClass("nvme").
+					WithBdevDeviceList("foo", "bar")
 				r := ioserver.NewTestRunner(nil, ioCfg)
 				if err := r.Start(ctx, make(chan<- error)); err != nil {
 					t.Fatal(err)
@@ -308,6 +390,13 @@ func TestServer_MgmtSvc_PoolCreateDownRanks(t *testing.T) {
 	defer cancel()
 
 	mgmtSvc := newTestMgmtSvc(t, log)
+	mgmtSvc.harness.instances[0] = newTestIOServer(log, false,
+		ioserver.NewConfig().
+			WithTargetCount(1).
+			WithBdevClass("nvme").
+			WithBdevDeviceList("foo", "bar"),
+	)
+
 	dc := newMockDrpcClient(&mockDrpcClientConfig{IsConnectedBool: true})
 	dc.cfg.setSendMsgResponse(drpc.Status_SUCCESS, nil, nil)
 	mgmtSvc.harness.instances[0]._drpcClient = dc

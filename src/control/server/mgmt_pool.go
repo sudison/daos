@@ -24,7 +24,10 @@
 package server
 
 import (
+	"math/rand"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
@@ -103,10 +106,26 @@ func (svc *mgmtSvc) calculateCreateStorage(req *mgmtpb.PoolCreateReq) error {
 	if targetCount == 0 {
 		return errors.New("zero target count")
 	}
+	minNvmeRequired := ioserver.NvmeMinBytesPerTarget * uint64(targetCount)
+
+	if len(instances[0].bdevConfig().DeviceList) == 0 {
+		svc.log.Info("config has 0 bdevs; excluding NVMe from pool create request")
+		req.Scmratio = 1
+		req.Nvmebytes = 0
+	}
+
+	if req.GetTotalbytes() > 0 {
+		req.Scmbytes = uint64(float64(req.GetTotalbytes()) * float64(req.GetScmratio()))
+		req.Nvmebytes = req.GetTotalbytes() - req.Scmbytes
+		// zero these out as they're not needed anymore
+		req.Totalbytes = 0
+		req.Scmratio = 0
+	}
+
 	if req.Scmbytes < ioserver.ScmMinBytesPerTarget*uint64(targetCount) {
 		return FaultPoolScmTooSmall(req.Scmbytes, targetCount)
 	}
-	if req.Nvmebytes != 0 && req.Nvmebytes < ioserver.NvmeMinBytesPerTarget*uint64(targetCount) {
+	if req.Nvmebytes != 0 && req.Nvmebytes < minNvmeRequired {
 		return FaultPoolNvmeTooSmall(req.Nvmebytes, targetCount)
 	}
 
@@ -122,19 +141,15 @@ func (svc *mgmtSvc) PoolCreate(ctx context.Context, req *mgmtpb.PoolCreateReq) (
 	if err := svc.checkLeaderRequest(req); err != nil {
 		return nil, err
 	}
-	resp = new(mgmtpb.PoolCreateResp)
 
 	svc.log.Debugf("MgmtSvc.PoolCreate dispatch, req:%+v\n", req)
-
-	if err := svc.calculateCreateStorage(req); err != nil {
-		return nil, err
-	}
 
 	uuid, err := uuid.Parse(req.GetUuid())
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse pool UUID %q", req.GetUuid())
 	}
 
+	resp = new(mgmtpb.PoolCreateResp)
 	ps, err := svc.sysdb.FindPoolServiceByUUID(uuid)
 	if ps != nil {
 		svc.log.Debugf("found pool %s state=%s", ps.PoolUUID, ps.State)
@@ -146,6 +161,10 @@ func (svc *mgmtSvc) PoolCreate(ctx context.Context, req *mgmtpb.PoolCreateReq) (
 	}
 	if _, ok := err.(*system.ErrPoolNotFound); !ok {
 		return nil, err
+	}
+
+	if _, err := svc.sysdb.FindPoolServiceByLabel(req.GetName()); err == nil {
+		return nil, FaultPoolDuplicateLabel(req.GetName())
 	}
 
 	allRanks, err := svc.sysdb.MemberRanks(system.AvailableMemberFilter)
@@ -170,15 +189,35 @@ func (svc *mgmtSvc) PoolCreate(ctx context.Context, req *mgmtpb.PoolCreateReq) (
 
 		req.Ranks = system.RanksToUint32(reqRanks)
 	} else {
-		// Otherwise, create the pool across all available ranks in the system.
-		req.Ranks = system.RanksToUint32(allRanks)
+		// Otherwise, create the pool across the requested number of
+		// available ranks in the system.
+		nRanks := len(allRanks)
+		if req.GetNumranks() > 0 {
+			nRanks = int(req.GetNumranks())
+
+			// TODO (DAOS-6263): Improve rank selection algorithm.
+			// In the short term, we can just randomize the set of
+			// available ranks in order to avoid always choosing the
+			// first N ranks.
+			rand.Seed(time.Now().UnixNano())
+			rand.Shuffle(len(allRanks), func(i, j int) {
+				allRanks[i], allRanks[j] = allRanks[j], allRanks[i]
+			})
+		}
+
+		req.Ranks = make([]uint32, nRanks)
+		for i := 0; i < nRanks; i++ {
+			req.Ranks[i] = allRanks[i].Uint32()
+		}
+		sort.Slice(req.Ranks, func(i, j int) bool { return req.Ranks[i] < req.Ranks[j] })
 	}
 
-	ps = &system.PoolService{
-		PoolUUID: uuid,
-		State:    system.PoolServiceStateCreating,
+	if err := svc.calculateCreateStorage(req); err != nil {
+		return nil, err
 	}
 
+	ps = system.NewPoolService(uuid, req.GetScmbytes(), req.GetNvmebytes(), system.RanksFromUint32(req.GetRanks()))
+	ps.PoolLabel = req.GetName()
 	if err := svc.sysdb.AddPoolService(ps); err != nil {
 		return nil, err
 	}
@@ -220,6 +259,8 @@ func (svc *mgmtSvc) PoolCreate(ctx context.Context, req *mgmtpb.PoolCreateReq) (
 		}
 	}()
 
+	svc.log.Debugf("MgmtSvc.PoolCreate (dRPC req): %+v", req)
+
 	dresp, err := svc.harness.CallDrpc(ctx, drpc.MethodPoolCreate, req)
 	if err != nil {
 		return nil, err
@@ -229,17 +270,18 @@ func (svc *mgmtSvc) PoolCreate(ctx context.Context, req *mgmtpb.PoolCreateReq) (
 		return nil, errors.Wrap(err, "unmarshal PoolCreate response")
 	}
 
-	// let the caller know how many ranks were used
-	resp.Numranks = uint32(len(req.Ranks))
-
 	if resp.GetStatus() != 0 {
 		if err := svc.sysdb.RemovePoolService(ps.PoolUUID); err != nil {
 			return nil, err
 		}
 		return resp, nil
 	}
+	// let the caller know what was actually created
+	resp.TgtRanks = req.Ranks
+	resp.ScmBytes = req.Scmbytes
+	resp.NvmeBytes = req.Nvmebytes
 
-	ps.Replicas = system.RanksFromUint32(resp.GetSvcreps())
+	ps.Replicas = system.RanksFromUint32(resp.GetSvcReps())
 	ps.State = system.PoolServiceStateReady
 	if err := svc.sysdb.UpdatePoolService(ps); err != nil {
 		return nil, err

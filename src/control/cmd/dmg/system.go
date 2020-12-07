@@ -405,16 +405,9 @@ type systemListPoolsCmd struct {
 	jsonOutputCmd
 }
 
-func formatPoolSvcReps(svcReps []uint32) string {
-	var b strings.Builder
-	for i, rep := range svcReps {
-		if i != 0 {
-			b.WriteString(",")
-		}
-		fmt.Fprintf(&b, "%d", rep)
-	}
-
-	return b.String()
+func formatRanks(ranks []uint32) string {
+	rs := system.RankSetFromRanks(system.RanksFromUint32(ranks))
+	return rs.RangedString()
 }
 
 // Execute is run when systemListPoolsCmd activates
@@ -451,7 +444,7 @@ func (cmd *systemListPoolsCmd) Execute(_ []string) error {
 		row := txtfmt.TableRow{uuidTitle: pool.UUID}
 
 		if len(pool.SvcReplicas) != 0 {
-			row[svcRepTitle] = formatPoolSvcReps(pool.SvcReplicas)
+			row[svcRepTitle] = formatRanks(pool.SvcReplicas)
 		}
 
 		table = append(table, row)
