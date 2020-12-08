@@ -1,5 +1,5 @@
 //
-// (C) Copyright 2019 Intel Corporation.
+// (C) Copyright 2019-2020 Intel Corporation.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ func (s *TokenSigner) Sign(key crypto.PrivateKey, data []byte) ([]byte, error) {
 	switch signingKey := key.(type) {
 	// TODO: Support key types other than RSA
 	case *rsa.PrivateKey:
-		return rsa.SignPKCS1v15(s.randPool, signingKey, crypto.SHA512, digest)
+		return rsa.SignPSS(s.randPool, signingKey, crypto.SHA512, digest, nil)
 	default:
 		return nil, &UnsupportedKeyError{}
 	}
@@ -95,7 +95,7 @@ func (s *TokenSigner) Verify(key crypto.PublicKey, data []byte, sig []byte) erro
 	switch signingKey := key.(type) {
 	// TODO: Support key types other than RSA
 	case *rsa.PublicKey:
-		return rsa.VerifyPKCS1v15(signingKey, crypto.SHA512, digest, sig)
+		return rsa.VerifyPSS(signingKey, crypto.SHA512, digest, sig, nil)
 	default:
 		return &UnsupportedKeyError{}
 	}
