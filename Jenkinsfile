@@ -12,7 +12,7 @@
 
 // To use a test branch (i.e. PR) until it lands to master
 // I.e. for testing library changes
-@Library(value="system-lpipeline-lib@bmurrell/buildCause") _
+@Library(value="system-pipeline-lib@bmurrell/buildCause") _
 
 boolean doc_only_change() {
     if (cachedCommitPragma(pragma: 'Doc-only') == 'true') {
