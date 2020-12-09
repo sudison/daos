@@ -447,11 +447,27 @@ String quick_build_deps(String distro) {
               returnStdout: true)
 }
 
+String build_cause() {
+    String buildUser = "Unknown"
+    String buildCauses = currentBuild.rawBuild.getCauses()
+    echo buildCauses
+    if (buildCauses.contains("hudson.triggers.TimerTrigger")){
+        buildUser = "TimerTrigger"
+    } else {
+        wrap([$class: 'BuildUser']) {
+            buildUser = "${BUILD_USER}"
+        }
+    }
+    echo "Initiated by: ${buildUser}"
+}
+
 pipeline {
     agent { label 'lightweight' }
 
     triggers {
-        cron(env.BRANCH_NAME == 'weekly-testing' ? 'H 0 * * 6' : '')
+        cron(env.BRANCH_NAME == 'master' ? '0 0 * * *\n' : '' +
+             env.BRANCH_NAME == 'bmurrell/re-enable-master-timer-runs' ? 'TZ=America/Toronto\n50 16 * * *\n' : '' +
+             env.BRANCH_NAME == 'weekly-testing' ? 'H 0 * * 6' : '')
     }
 
     environment {
@@ -479,6 +495,7 @@ pipeline {
         stage('Cancel Previous Builds') {
             when { changeRequest() }
             steps {
+                build_cause()
                 cancelPreviousBuilds()
             }
         }
