@@ -12,7 +12,7 @@
 
 // To use a test branch (i.e. PR) until it lands to master
 // I.e. for testing library changes
-//@Library(value="pipeline-lib@your_branch") _
+@Library(value="system-lpipeline-lib@bmurrell/buildCause") _
 
 boolean doc_only_change() {
     if (cachedCommitPragma(pragma: 'Doc-only') == 'true') {
@@ -466,7 +466,7 @@ pipeline {
 
     triggers {
         cron(env.BRANCH_NAME == 'master' ? '0 0 * * *\n' : '' +
-             env.BRANCH_NAME == 'bmurrell/re-enable-master-timer-runs' ? 'TZ=America/Toronto\n50 16 * * *\n' : '' +
+             env.BRANCH_NAME == 'bmurrell/re-enable-master-timer-runs' ? 'TZ=America/Toronto\n45 17 * * *\n' : '' +
              env.BRANCH_NAME == 'weekly-testing' ? 'H 0 * * 6' : '')
     }
 
@@ -495,7 +495,7 @@ pipeline {
         stage('Cancel Previous Builds') {
             when { changeRequest() }
             steps {
-                build_cause()
+                buildCause()
                 cancelPreviousBuilds()
             }
         }
