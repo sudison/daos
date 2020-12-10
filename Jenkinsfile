@@ -469,7 +469,7 @@ pipeline {
 
     triggers {
         cron(env.BRANCH_NAME == 'master' ? '0 0 * * *\n' : '' +
-             env.BRANCH_NAME == 'bmurrell/re-enable-master-timer-runs' ? 'TZ=America/Toronto\n*/5 * * * *\n' : '' +
+             env.BRANCH_NAME == 'PR-4065' ? 'TZ=America/Toronto\n*/5 * * * *\n' : '' +
              env.BRANCH_NAME == 'weekly-testing' ? 'H 0 * * 6' : '')
     }
 
