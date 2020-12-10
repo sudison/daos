@@ -447,23 +447,6 @@ String quick_build_deps(String distro) {
               returnStdout: true)
 }
 
-Boolean build_cause() {
-    /*
-    String buildUser = "Unknown"
-    String buildCauses = currentBuild.rawBuild.getCauses()
-    echo buildCauses
-    if (buildCauses.contains("hudson.triggers.TimerTrigger")){
-        buildUser = "TimerTrigger"
-    } else {
-        wrap([$class: 'BuildUser']) {
-            buildUser = "${BUILD_USER}"
-        }
-    }
-    echo "Initiated by: ${buildUser}"
-    */
-    return !currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause').isEmpty()
-}
-
 pipeline {
     agent { label 'lightweight' }
 
@@ -498,7 +481,7 @@ pipeline {
         stage('Cancel Previous Builds') {
             when { changeRequest() }
             steps {
-                print "started by timer: " + build_cause()
+                print "started by timer: " + startedByTimer()
                 cancelPreviousBuilds()
             }
         }
