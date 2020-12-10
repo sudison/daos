@@ -75,6 +75,11 @@ bool
 plt_obj_layout_match(struct pl_obj_layout *lo_1, struct pl_obj_layout *lo_2);
 
 void
+plt_set_domain_status(uint32_t id, int status, uint32_t *ver,
+		      struct pool_map *po_map, bool pl_debug_msg,
+		      enum pool_comp_type level);
+
+void
 plt_set_tgt_status(uint32_t id, int status, uint32_t ver,
 		struct pool_map *po_map, bool pl_debug_msg);
 

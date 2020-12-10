@@ -67,7 +67,7 @@ plt_obj_place(daos_obj_id_t oid, struct pl_obj_layout **layout,
 
 	memset(&md, 0, sizeof(md));
 	md.omd_id  = oid;
-	md.omd_ver = 1;
+	md.omd_ver = pool_map_get_version(pl_map->pl_poolmap);
 
 	rc = pl_obj_place(pl_map, &md, NULL, layout);
 
@@ -359,6 +359,87 @@ plt_obj_layout_match(struct pl_obj_layout *lo_1, struct pl_obj_layout *lo_2)
 	}
 
 	return true;
+}
+
+static pool_comp_type_t
+plt_next_level(pool_comp_type_t current)
+{
+	switch (current) {
+		case PO_COMP_TP_ROOT:
+			return PO_COMP_TP_RACK;
+		case PO_COMP_TP_RACK:
+			return PO_COMP_TP_NODE;
+		case PO_COMP_TP_NODE:
+			return PO_COMP_TP_TARGET;
+
+		/* these are not used by the test layout */
+		case PO_COMP_TP_BLADE:
+		case PO_COMP_TP_BOARD:
+		case PO_COMP_TP_TARGET:
+		case PO_COMP_TP_UNKNOWN:
+		default:
+			return PO_COMP_TP_UNKNOWN;
+	}
+}
+
+void
+plt_set_domain_status(uint32_t id, int status, uint32_t *ver,
+		      struct pool_map *po_map, bool pl_debug_msg,
+		      enum pool_comp_type level)
+{
+	struct pool_domain	*domain;
+	char			*str;
+	int			 rc;
+
+	switch (status) {
+		case PO_COMP_ST_UP:
+			str = "PO_COMP_ST_UP";
+			break;
+		case PO_COMP_ST_UPIN:
+			str = "PO_COMP_ST_UPIN";
+			break;
+		case PO_COMP_ST_DOWN:
+			str = "PO_COMP_ST_DOWN";
+			break;
+		case PO_COMP_ST_DRAIN:
+			str = "PO_COMP_ST_DRAIN";
+			break;
+		case PO_COMP_ST_DOWNOUT:
+			str = "PO_COMP_ST_DOWNOUT";
+			break;
+		default:
+			str = "unknown";
+			break;
+	};
+
+	rc = pool_map_find_domain(po_map, level, id, &domain);
+	D_ASSERT(rc == 1);
+
+	int i;
+
+	for (i = 0; i < domain->do_child_nr; i++) {
+		plt_set_domain_status(domain->do_children[i].do_comp.co_id,
+				      status, ver,
+				      po_map, pl_debug_msg,
+				      plt_next_level(level));
+	}
+	if (level == PO_COMP_TP_NODE) {
+		for(i = 0; i < domain->do_target_nr; i++) {
+			(*ver)++;
+			plt_set_tgt_status(domain->do_targets[i].ta_comp.co_id,
+				status, *ver, po_map, pl_debug_msg);
+		}
+	}
+
+	if (pl_debug_msg)
+		D_PRINT("set domain id %d, rank %d as %s, ver %d.\n",
+			id, domain->do_comp.co_rank, str, *ver);
+	domain->do_comp.co_status = status;
+	domain->do_comp.co_fseq = *ver;
+
+	pool_map_update_failed_cnt(po_map);
+	rc = pool_map_set_version(po_map, *ver);
+	D_ASSERT(rc == 0);
 }
 
 void

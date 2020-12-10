@@ -47,7 +47,7 @@ remap_add_one(d_list_t *remap_list, struct failed_shard *f_new)
 	d_list_for_each_prev(tmp, remap_list) {
 		f_shard = d_list_entry(tmp, struct failed_shard, fs_list);
 		/*
-		* Since we can only reuild one target at a time, the
+		* Since we can only rebuild one target at a time, the
 		* target fseq should be assigned uniquely, even if all
 		* the targets of the same domain failed at same time.
 		*/

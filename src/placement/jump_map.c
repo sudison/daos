@@ -403,7 +403,7 @@ get_target(struct pool_domain *curr_dom, struct pool_target **target,
 
 			} while (isset(tgts_used, dom_id));
 			setbit(tgts_used, dom_id);
-
+//D_PRINT("[RYON] %s:%d [%s()] > Had to try %d times to find target\n", __FILE__, __LINE__, __FUNCTION__, fail_num);
 			/* Found target (which may be available or not) */
 			found_target = 1;
 		} else {
@@ -436,7 +436,7 @@ get_target(struct pool_domain *curr_dom, struct pool_target **target,
 								    num_doms);
 				key = crc(key, fail_num++);
 			} while (isset(dom_used, start_dom + selected_dom));
-
+//			D_PRINT("[RYON] %s:%d [%s()] > Had to try %d times\n", __FILE__, __LINE__, __FUNCTION__, fail_num);
 			/* Mark this domain as used */
 			setbit(dom_used, start_dom + selected_dom);
 
@@ -662,7 +662,7 @@ get_object_layout(struct pl_jump_map *jmap, struct pl_obj_layout *layout,
 		D_ERROR("Could not find root node in pool map.");
 		return -DER_NONEXIST;
 	}
-
+/* [todo-ryon]: ?? */
 	dom_used_length = (struct pool_domain *)(root->do_targets) - (root) + 1;
 
 	D_ALLOC_ARRAY(dom_used, (dom_used_length / 8) + 1);
@@ -711,9 +711,9 @@ get_object_layout(struct pl_jump_map *jmap, struct pl_obj_layout *layout,
 		j = 1;
 		k = 1;
 	}
-	for (i = 0; i < jmop->jmop_grp_nr; i++) {
+	for (i = 0; i < jmop->jmop_grp_nr; i++) { /* # shards object is broken up into */
 
-		for (; j < jmop->jmop_grp_size; j++, k++) {
+		for (; j < jmop->jmop_grp_size; j++, k++) { /* # of replicas */
 			uint32_t tgt_id;
 			uint32_t fseq;
 
