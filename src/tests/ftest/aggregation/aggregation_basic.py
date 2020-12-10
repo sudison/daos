@@ -70,7 +70,7 @@ class DaosAggregationBasic(IorTestBase):
             roughly the same as after the initial run since aggregation has
             reclaimed the overwritten capacity.
 
-        :avocado: tags=all,master_branch,hw,large,aggregate,daosio,aggregatebasic
+        :avocado: tags=all,branch_timer,hw,large,aggregate,daosio,aggregatebasic
         :avocado: tags=DAOS_5610
         """
 

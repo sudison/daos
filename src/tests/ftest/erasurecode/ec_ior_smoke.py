@@ -37,7 +37,7 @@ class ErasureCodeIor(IorTestBase):
         Use Case: Create the medium size of pool and run IOR with supported
                   EC object type class for sanity purpose.
 
-        :avocado: tags=all,master_branch,hw,large,ec,ec_smoke,ec_ior
+        :avocado: tags=all,branch_timer,hw,large,ec,ec_smoke,ec_ior
         """
         obj_class = self.params.get("dfs_oclass", '/run/ior/objectclass/*')
 

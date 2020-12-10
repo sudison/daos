@@ -272,7 +272,7 @@ class DmgNetworkScanTest(TestWithServers):
         JIRA ID: DAOS-2516
         Test Description: Test basic dmg functionality to scan the network
         devices on the system.
-        :avocado: tags=all,small,master_branch,hw,dmg,network_scan,basic
+        :avocado: tags=all,small,branch_timer,hw,dmg,network_scan,basic
         """
         # Get info, both these functions will return a list of NetDev objects
         dmg_info = sorted(

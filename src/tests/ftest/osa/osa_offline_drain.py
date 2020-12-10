@@ -116,7 +116,7 @@ class OSAOfflineDrain(OSAUtils):
 
         Test Description: Validate Offline Drain
 
-        :avocado: tags=all,master_branch,hw,large,osa,osa_drain,offline_drain
+        :avocado: tags=all,branch_timer,hw,large,osa,osa_drain,offline_drain
         """
         for pool_num in range(1, 3):
             self.run_offline_drain_test(pool_num, True)

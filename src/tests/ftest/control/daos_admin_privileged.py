@@ -54,7 +54,7 @@ class DaosAdminPrivTest(TestWithServers):
             Test daos_admin functionality to perform format privileged
             operations while daos_server is run as normal user.
 
-        :avocado: tags=all,master_branch,hw,small,daos_admin,basic
+        :avocado: tags=all,branch_timer,hw,small,daos_admin,basic
         """
         # Verify that daos_admin has the correct permissions
         self.log.info("Checking daos_admin binary permissions")

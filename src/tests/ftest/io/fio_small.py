@@ -51,6 +51,6 @@ class FioSmall(FioBase):
             read_write: rw|randrw
             numjobs: 1
 
-        :avocado: tags=all,master_branch,hw,medium,ib2,fio,fiosmall
+        :avocado: tags=all,branch_timer,hw,medium,ib2,fio,fiosmall
         """
         self.execute_fio()

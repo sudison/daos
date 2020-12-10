@@ -49,7 +49,7 @@ class IorSmall(IorTestBase):
             All above three cases to be run with single client and
                 multiple client processes in two separate nodes.
 
-        :avocado: tags=all,master_branch,hw,large,daosio,iorsmall,DAOS_5610
+        :avocado: tags=all,branch_timer,hw,large,daosio,iorsmall,DAOS_5610
         """
         results = []
         ior_timeout = self.params.get("ior_timeout", '/run/ior/*')

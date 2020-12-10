@@ -54,7 +54,7 @@ class PunchTest(TestWithServers):
         """
         The most basic test of the dkey punch function.
 
-        :avocado: tags=all,object,master_branch,small,dkeypunch
+        :avocado: tags=all,object,branch_timer,small,dkeypunch
         """
 
         try:
@@ -109,7 +109,7 @@ class PunchTest(TestWithServers):
         """
         The most basic test of the akey punch function.
 
-        :avocado: tags=all,object,master_branch,small,akeypunch
+        :avocado: tags=all,object,branch_timer,small,akeypunch
         """
 
         try:
@@ -163,7 +163,7 @@ class PunchTest(TestWithServers):
         The most basic test of the object punch function.  Really similar
         to above except the whole object is deleted.
 
-        :avocado: tags=all,object,master_branch,small,objpunch
+        :avocado: tags=all,object,branch_timer,small,objpunch
         """
 
         try:

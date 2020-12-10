@@ -45,7 +45,7 @@ class DaosCoreTestDfs(DaosCoreBase):
 
         Use Cases: Daos File system tests
 
-        :avocado: tags=all,master_branch,hw,large,dfs_test
+        :avocado: tags=all,branch_timer,hw,large,dfs_test
         """
         self.daos_test = os.path.join(self.bin, 'dfs_test')
         DaosCoreBase.run_subtest(self)
