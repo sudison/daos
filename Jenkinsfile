@@ -498,7 +498,7 @@ pipeline {
         stage('Cancel Previous Builds') {
             when { changeRequest() }
             steps {
-                print "started by timer: " + buildCause()
+                print "started by timer: " + build_cause()
                 cancelPreviousBuilds()
             }
         }
