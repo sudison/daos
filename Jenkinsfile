@@ -12,7 +12,7 @@
 
 // To use a test branch (i.e. PR) until it lands to master
 // I.e. for testing library changes
-@Library(value="trusted-pipeline-lib@bmurrell/buildCause", "pipeline-lib@bmurrell/tag-for-timer") _
+@Library(["trusted-pipeline-lib@bmurrell/buildCause", "pipeline-lib@bmurrell/tag-for-timer"]) _
 
 boolean doc_only_change() {
     if (cachedCommitPragma(pragma: 'Doc-only') == 'true') {
