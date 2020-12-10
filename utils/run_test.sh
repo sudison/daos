@@ -68,6 +68,26 @@ run_test()
     fi
 
     ((log_num += 1))
+
+    FILES=${DAOS_BASE}/test_results/*.xml
+    for f in $FILES
+    do
+        if [ -f "$f" ]; then
+            echo "Processing XML $f"
+
+            SUITE=`grep "testsuite name=" "$f" | \
+                   grep -Po "name=\"\K.*(?=\" time=)"`
+
+            CLASS=`grep "<testcase classname" "$f"`
+            if [ "$CLASS" == "" ]; then
+                sed -i \
+                "s/case name/case classname=\"${COMP}.${SUITE}\" name/" "$f"
+            else
+                sed -i "s/case classname=\"/case classname=\"${COMP}./" "$f"
+            fi
+        fi
+    done
+    mv ${DAOS_BASE}/test_results/*.xml ${DAOS_BASE}/test_results/xml
 }
 
 if [ -d "/mnt/daos" ]; then
@@ -80,17 +100,23 @@ if [ -d "/mnt/daos" ]; then
     fi
 
     echo "Running Cmocka tests"
+    mkdir -p ${DAOS_BASE}/test_results/xml
+
     VALGRIND_CMD=""
     if [ -z "$RUN_TEST_VALGRIND" ]; then
         # Tests that do not run valgrind
+        COMP="UT_client"
         run_test src/client/storage_estimator/common/tests/storage_estimator.sh
+        COMP="UT_rdb"
         run_test src/rdb/raft_tests/raft_tests.py
         go_spdk_ctests="${SL_PREFIX}/bin/nvme_control_ctests"
         if test -f "$go_spdk_ctests"; then
+            COMP="UT_control"
             run_test "$go_spdk_ctests"
         else
             echo "$go_spdk_ctests missing, SPDK_SRC not available when built?"
         fi
+        COMP="UT_control"
         run_test src/control/run_go_tests.sh
     else
         if [ "$RUN_TEST_VALGRIND" = "memcheck" ]; then
@@ -107,12 +133,17 @@ if [ -d "/mnt/daos" ]; then
     fi
 
     # Tests
+    COMP="UT_cart"
     run_test "${SL_BUILD_DIR}/src/tests/ftest/cart/utest/test_linkage"
+    run_test "${SL_BUILD_DIR}/src/tests/ftest/cart/utest/utest_hlc"
+    run_test "${SL_BUILD_DIR}/src/tests/ftest/cart/utest/utest_swim"
+
+    COMP="UT_gurt"
     run_test "${SL_BUILD_DIR}/src/gurt/tests/test_gurt"
     run_test "${SL_BUILD_DIR}/src/gurt/tests/test_gurt_telem_producer"
     run_test "${SL_BUILD_DIR}/src/gurt/tests/test_gurt_telem_consumer"
-    run_test "${SL_BUILD_DIR}/src/tests/ftest/cart/utest/utest_hlc"
-    run_test "${SL_BUILD_DIR}/src/tests/ftest/cart/utest/utest_swim"
+
+    COMP="UT_vos"
     run_test "${SL_PREFIX}/bin/vos_tests" -A 500
     run_test "${SL_PREFIX}/bin/vos_tests" -n -A 500
     export DAOS_IO_BYPASS=pm
@@ -120,29 +151,44 @@ if [ -d "/mnt/daos" ]; then
     export DAOS_IO_BYPASS=pm_snap
     run_test "${SL_PREFIX}/bin/vos_tests" -A 50
     unset DAOS_IO_BYPASS
+
+    COMP="UT_vea"
+    run_test "${SL_PREFIX}/bin/vea_ut"
+
+    COMP="UT_bio"
+    run_test "${SL_BUILD_DIR}/src/bio/smd/tests/smd_ut"
+
+    COMP="UT_common"
     run_test "${SL_BUILD_DIR}/src/common/tests/umem_test"
     run_test "${SL_BUILD_DIR}/src/common/tests/sched"
     run_test "${SL_BUILD_DIR}/src/common/tests/drpc_tests"
-    run_test "${SL_BUILD_DIR}/src/client/api/tests/eq_tests"
-    run_test "${SL_BUILD_DIR}/src/bio/smd/tests/smd_ut"
-    run_test "${SL_PREFIX}/bin/vea_ut"
-    run_test "${SL_BUILD_DIR}/src/security/tests/cli_security_tests"
-    run_test "${SL_BUILD_DIR}/src/security/tests/srv_acl_tests"
     run_test "${SL_BUILD_DIR}/src/common/tests/acl_api_tests"
     run_test "${SL_BUILD_DIR}/src/common/tests/acl_valid_tests"
     run_test "${SL_BUILD_DIR}/src/common/tests/acl_util_tests"
     run_test "${SL_BUILD_DIR}/src/common/tests/acl_principal_tests"
     run_test "${SL_BUILD_DIR}/src/common/tests/acl_real_tests"
     run_test "${SL_BUILD_DIR}/src/common/tests/prop_tests"
+
+    COMP="UT_client"
+    run_test "${SL_BUILD_DIR}/src/client/api/tests/eq_tests"
+
+    COMP="UT_security"
+    run_test "${SL_BUILD_DIR}/src/security/tests/cli_security_tests"
+    run_test "${SL_BUILD_DIR}/src/security/tests/srv_acl_tests"
+
+    COMP="UT_iosrv"
     run_test "${SL_BUILD_DIR}/src/iosrv/tests/drpc_progress_tests"
     run_test "${SL_BUILD_DIR}/src/iosrv/tests/drpc_handler_tests"
     run_test "${SL_BUILD_DIR}/src/iosrv/tests/drpc_listener_tests"
+
+    COMP="UT_mgmt"
     run_test "${SL_BUILD_DIR}/src/mgmt/tests/srv_drpc_tests"
 
     # Scripts launching tests
     export USE_VALGRIND=${RUN_TEST_VALGRIND}
     export VALGRIND_SUPP=${VALGRIND_SUPP}
     unset VALGRIND_CMD
+    COMP="UT_common"
     run_test src/common/tests/btree.sh ukey -s 20000
     run_test src/common/tests/btree.sh direct -s 20000
     run_test src/common/tests/btree.sh -s 20000
@@ -153,10 +199,15 @@ if [ -d "/mnt/daos" ]; then
     run_test src/common/tests/btree.sh dyn -s 20000
     run_test src/common/tests/btree.sh dyn perf -s 20000
     run_test src/common/tests/btree.sh dyn perf ukey -s 20000
+
+    COMP="UT_vos"
     run_test src/vos/tests/evt_ctl.sh
     run_test src/vos/tests/evt_ctl.sh pmem
     unset USE_VALGRIND
     unset VALGRIND_SUPP
+
+    mv ${DAOS_BASE}/test_results/xml/*.xml ${DAOS_BASE}/test_results
+    rm -rf ${DAOS_BASE}/test_results/xml
 
     # Reporting
     if [ $failed -eq 0 ]; then
