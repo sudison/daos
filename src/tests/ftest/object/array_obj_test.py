@@ -48,7 +48,7 @@ class ArrayObjTest(TestWithServers):
         Test Description: Writes an array to an object and then reads it
         back and verifies it.
 
-        :avocado: tags=all,smoke,branch_timer,object,tiny,basicobject
+        :avocado: tags=all,smoke,pr,daily_regression,object,tiny,basicobject
         """
         self.prepare_pool()
 

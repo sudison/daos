@@ -46,7 +46,7 @@ class CreateContainterACLTest(ContSecurityTestBase):
                file passed.
             7. Remove all files created
 
-        :avocado: tags=all,branch_timer,security,container_acl,cont_create_acl
+        :avocado: tags=all,pr,daily_regression,security,container_acl,cont_create_acl
         """
         acl_args = {"tmp_dir": self.tmp,
                     "user": self.current_user,

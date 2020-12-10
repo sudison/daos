@@ -44,7 +44,7 @@ class SuperBlockVersioning(TestWithServers):
         Test Description:
             Basic test to verify that superblock file is versioned.
 
-        :avocado: tags=all,tiny,branch_timer,ds_versioning,basic
+        :avocado: tags=all,tiny,pr,daily_regression,ds_versioning,basic
         """
         # Check that the superblock file exists under the scm_mount dir.
         scm_mount = self.server_managers[0].get_config_value("scm_mount")

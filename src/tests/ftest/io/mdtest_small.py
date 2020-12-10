@@ -48,7 +48,7 @@ class MdtestSmall(MdtestBase):
             read bytes: 0|4K
             depth of hierarchical directory structure: 0|5
 
-        :avocado: tags=all,branch_timer,hw,large,mdtest,mdtestsmall,DAOS_5610
+        :avocado: tags=all,pr,daily_regression,hw,large,mdtest,mdtestsmall,DAOS_5610
         """
         # local params
         mdtest_params = self.params.get("mdtest_params", "/run/mdtest/*")

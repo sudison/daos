@@ -139,7 +139,7 @@ class RebuildTests(TestWithServers):
         Use Cases:
             single pool rebuild, single client, various record/object counts
 
-        :avocado: tags=all,branch_timer,medium,pool,rebuild,rebuildsimple
+        :avocado: tags=all,pr,daily_regression,medium,pool,rebuild,rebuildsimple
         """
         self.run_rebuild_test(1)
 
@@ -153,6 +153,6 @@ class RebuildTests(TestWithServers):
         Use Cases:
             multipool rebuild, single client, various object and record counts
 
-        :avocado: tags=all,branch_timer,medium,pool,rebuild,rebuildmulti
+        :avocado: tags=all,pr,daily_regression,medium,pool,rebuild,rebuildmulti
         """
         self.run_rebuild_test(self.params.get("quantity", "/run/testparams/*"))

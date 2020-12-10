@@ -49,7 +49,7 @@ class PoolSecurityTest(TestWithServers):
                                       (permission denied with error -1001)
            Above 3 testcases are defined in the yaml file.
 
-        :avocado: tags=all,branch_timer,full_regression,small,pool,sec_basic,security
+        :avocado: tags=all,pr,daily_regression,full_regression,small,pool,sec_basic,security
         """
         der_no_permission = "RC: -1001"
         user_uid = os.geteuid()

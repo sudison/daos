@@ -278,7 +278,7 @@ class OSAOnlineReintegration(TestWithServers):
 
         Test Description: Validate Online Reintegration
 
-        :avocado: tags=all,branch_timer,hw,large,osa,online_reintegration,DAOS_5610
+        :avocado: tags=all,pr,daily_regression,hw,large,osa,online_reintegration,DAOS_5610
         """
         # Perform reintegration testing with 1 pool.
         for pool_num in range(1, 2):

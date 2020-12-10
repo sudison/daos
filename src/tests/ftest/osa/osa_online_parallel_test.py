@@ -297,6 +297,6 @@ class OSAOnlineParallelTest(TestWithServers):
 
         Test Description: Runs multiple OSA commands/IO in parallel
 
-        :avocado: tags=all,branch_timer,hw,large,osa,osa_parallel,online_parallel
+        :avocado: tags=all,pr,daily_regression,hw,large,osa,osa_parallel,online_parallel
         """
         self.run_online_parallel_test(1)

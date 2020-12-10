@@ -53,7 +53,7 @@ class AggregationChecksum(IorTestBase):
             Allow the aggregation to finish.
             Run IOR again this time to read back the data with read verify
             option enabled.
-        :avocado: tags=all,daosio,hw,small,branch_timer,aggregationchecksum
+        :avocado: tags=all,daosio,hw,small,pr,daily_regression,aggregationchecksum
         """
 
         # test params
