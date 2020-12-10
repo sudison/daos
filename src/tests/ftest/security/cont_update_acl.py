@@ -56,7 +56,7 @@ class UpdateContainerACLTest(ContSecurityTestBase):
             expected with valid and invalid inputs in command line for the
             --entry and --acl-file options.
 
-        :avocado: tags=all,pr,security,container_acl,cont_update_acl_inputs
+        :avocado: tags=all,master_branch,security,container_acl,cont_update_acl_inputs
         """
         # Get lists of invalid
         invalid_entries = self.params.get("invalid_acl_entries", "/run/*")
@@ -101,7 +101,7 @@ class UpdateContainerACLTest(ContSecurityTestBase):
         Test Description: Test that container update command performs as
             expected with invalid values within ACL file.
 
-        :avocado: tags=all,pr,security,container_acl,cont_update_invalid_acl
+        :avocado: tags=all,master_branch,security,container_acl,cont_update_invalid_acl
         """
         invalid_file_content = self.params.get(
             "invalid_acl_file_content", "/run/*")
@@ -137,7 +137,7 @@ class UpdateContainerACLTest(ContSecurityTestBase):
             expected when adding an ACL file that contains principals that are
             currently in the ACL.
 
-        :avocado: tags=all,pr,security,container_acl,cont_update_acl
+        :avocado: tags=all,master_branch,security,container_acl,cont_update_acl
         """
         path_to_file = os.path.join(self.tmp, self.acl_filename)
 
@@ -187,7 +187,7 @@ class UpdateContainerACLTest(ContSecurityTestBase):
         Test Description: Test that container update command fails with
             no permission -1001 when user doesn't have the right permissions.
 
-        :avocado: tags=all,pr,security,container_acl,cont_update_acl_noperms
+        :avocado: tags=all,master_branch,security,container_acl,cont_update_acl_noperms
         """
         valid_file_content = self.params.get("valid_acl_file", "/run/*")
         path_to_file = os.path.join(self.tmp, self.acl_filename)

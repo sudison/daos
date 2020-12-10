@@ -70,7 +70,7 @@ class GlobalHandle(TestWithServers):
 
         Test Description: Use a pool handle in another process.
 
-        :avocado: tags=all,pool,pr,tiny,poolglobalhandle
+        :avocado: tags=all,pool,master_branch,tiny,poolglobalhandle
         """
         # initialize a python pool object then create the underlying
         # daos storage

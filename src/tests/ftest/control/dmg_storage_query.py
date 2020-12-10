@@ -66,7 +66,7 @@ class DmgStorageQuery(ControlTestBase):
 
         Test Description: Test 'dmg storage query list-devices' command.
 
-        :avocado: tags=all,pr,hw,small,storage_query_devs,basic,dmg
+        :avocado: tags=all,master_branch,hw,small,storage_query_devs,basic,dmg
         """
         # Get the storage device information, parse and check devices info
         devs_info = self.get_device_info()
@@ -89,7 +89,7 @@ class DmgStorageQuery(ControlTestBase):
 
         Test Description: Test 'dmg storage query list-pools' command.
 
-        :avocado: tags=all,pr,hw,small,storage_query_pools,basic,dmg
+        :avocado: tags=all,master_branch,hw,small,storage_query_pools,basic,dmg
         """
         # Create pool and get the storage smd information, then verfify info
         self.prepare_pool()
@@ -125,7 +125,7 @@ class DmgStorageQuery(ControlTestBase):
 
         Test Description: Test 'dmg storage query list-devices --health' cmd.
 
-        :avocado: tags=all,pr,hw,small,storage_query_health,basic
+        :avocado: tags=all,master_branch,hw,small,storage_query_health,basic
         """
         dmg_info = self.get_device_info(health=True)
 
@@ -162,7 +162,7 @@ class DmgStorageQuery(ControlTestBase):
         In addition this test also does a basic test of nvme-faulty cmd:
         'dmg storage set nvme-faulty'
 
-        :avocado: tags=all,pr,hw,small,storage_query_faulty,basic
+        :avocado: tags=all,master_branch,hw,small,storage_query_faulty,basic
         """
         # Get device info and check state is NORMAL
         devs_info = self.get_device_info()

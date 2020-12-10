@@ -245,7 +245,7 @@ class OSAOnlineExtend(TestWithServers):
         """Test ID: DAOS-4751
         Test Description: Validate Online extend
 
-        :avocado: tags=all,pr,hw,large,osa,osa_extend,online_extend
+        :avocado: tags=all,master_branch,hw,large,osa,osa_extend,online_extend
         """
         # Perform extend testing with 1 to 2 pools
         self.run_online_extend_test(1)

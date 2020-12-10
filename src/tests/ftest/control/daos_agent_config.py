@@ -48,7 +48,7 @@ class DaosAgentConfigTest(TestWithServers):
         Test Description: Test daos_agent start/stops properly.
         on the system.
 
-        :avocado: tags=all,small,control,pr,agent_start,basic
+        :avocado: tags=all,small,control,master_branch,agent_start,basic
         """
         # Setup the agents
         self.add_agent_manager()
