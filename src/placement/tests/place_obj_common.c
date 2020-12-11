@@ -407,6 +407,9 @@ plt_set_domain_status(uint32_t id, int status, uint32_t *ver,
 		case PO_COMP_ST_DOWNOUT:
 			str = "PO_COMP_ST_DOWNOUT";
 			break;
+		case PO_COMP_ST_NEW:
+			str = "PO_COMP_ST_NEW";
+			break;
 		default:
 			str = "unknown";
 			break;
@@ -465,6 +468,9 @@ plt_set_tgt_status(uint32_t id, int status, uint32_t ver,
 		break;
 	case PO_COMP_ST_DOWNOUT:
 		str = "PO_COMP_ST_DOWNOUT";
+		break;
+	case PO_COMP_ST_NEW:
+		str = "PO_COMP_ST_NEW";
 		break;
 	default:
 		str = "unknown";
